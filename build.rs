@@ -160,22 +160,53 @@ fn search() -> PathBuf {
 fn fetch() -> io::Result<()> {
     let output_base_path = output();
     let clone_dest_dir = format!("ffmpeg-{}", version());
-    let _ = std::fs::remove_dir_all(output_base_path.join(&clone_dest_dir));
-    let status = Command::new("git")
-        .current_dir(&output_base_path)
-        .arg("clone")
-        .arg("--depth=1")
-        .arg("-b")
-        .arg(format!("release/{}", version()))
-        .arg("https://github.com/FFmpeg/FFmpeg")
-        .arg(&clone_dest_dir)
-        .status()?;
+    let dest_path = output_base_path.join(&clone_dest_dir);
 
-    if status.success() {
+    // Remove any existing destination directory.
+    let _ = fs::remove_dir_all(&dest_path);
+
+    if let Ok(source_path_str) = env::var("FFMPEG_SOURCE_PATH") {
+        let source_path = std::path::Path::new(&source_path_str);
+        println!("Using local FFmpeg source directory: {:?}", source_path);
+        copy_dir_all(source_path, &dest_path)?;
         Ok(())
     } else {
-        Err(io::Error::new(io::ErrorKind::Other, "fetch failed"))
+        println!("Cloning FFmpeg from GitHub...");
+        let status = Command::new("git")
+            .current_dir(&output_base_path)
+            .arg("clone")
+            .arg("--depth=1")
+            .arg("-b")
+            .arg(format!("release/{}", version()))
+            .arg("https://github.com/FFmpeg/FFmpeg")
+            .arg(&clone_dest_dir)
+            .status()?;
+
+        if status.success() {
+            Ok(())
+        } else {
+            Err(io::Error::new(io::ErrorKind::Other, "fetch failed"))
+        }
     }
+}
+
+/// Recursively copy a directory from `src` to `dst`
+fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> io::Result<()> {
+    // Create the destination directory.
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let dst_entry = dst.join(entry.file_name());
+        if file_type.is_dir() {
+            // Recursively copy sub-directories.
+            copy_dir_all(&entry.path(), &dst_entry)?;
+        } else {
+            // For files, perform a direct copy.
+            fs::copy(entry.path(), dst_entry)?;
+        }
+    }
+    Ok(())
 }
 
 fn switch(configure: &mut Command, feature: &str, name: &str) {
