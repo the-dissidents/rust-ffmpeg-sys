@@ -161,26 +161,51 @@ fn fetch() -> io::Result<()> {
     let output_base_path = output();
     let clone_dest_dir = format!("ffmpeg-{}", version());
     let _ = std::fs::remove_dir_all(output_base_path.join(&clone_dest_dir));
-    let status = Command::new("git")
-        .current_dir(&output_base_path)
-        .args(if cfg!(target_os = "windows") {
-            vec!["-c", "core.autocrlf=false"]
-        } else {
-            vec![]
-        })
-        .arg("clone")
-        .arg("--depth=1")
-        .arg("-b")
-        .arg(format!("release/{}", version()))
-        .arg("https://github.com/FFmpeg/FFmpeg")
-        .arg(&clone_dest_dir)
-        .status()?;
 
-    if status.success() {
+    if let Ok(source_path_str) = env::var("FFMPEG_SOURCE_PATH") {
+        let source_path = std::path::Path::new(&source_path_str);
+        let dest_path = output_base_path.join(&clone_dest_dir);
+        println!("Using local FFmpeg source directory: {:?}", source_path);
+        copy_dir_all(source_path, &dest_path)?;
         Ok(())
     } else {
-        Err(io::Error::new(io::ErrorKind::Other, "fetch failed"))
+        println!("Cloning FFmpeg from GitHub...");
+        let status = Command::new("git")
+            .current_dir(&output_base_path)
+            .args(if cfg!(target_os = "windows") {
+                vec!["-c", "core.autocrlf=false"]
+            } else {
+                vec![]
+            })
+            .arg("clone")
+            .arg("--depth=1")
+            .arg("-b")
+            .arg(format!("release/{}", version()))
+            .arg("https://github.com/FFmpeg/FFmpeg")
+            .arg(&clone_dest_dir)
+            .status()?;
+
+        if status.success() {
+            Ok(())
+        } else {
+            Err(io::Error::new(io::ErrorKind::Other, "fetch failed"))
+        }
     }
+}
+
+fn copy_dir_all(src: &std::path::Path, dst: &std::path::Path) -> io::Result<()> {
+    fs::create_dir_all(dst)?;
+    for entry in fs::read_dir(src)? {
+        let entry = entry?;
+        let file_type = entry.file_type()?;
+        let dst_entry = dst.join(entry.file_name());
+        if file_type.is_dir() {
+            copy_dir_all(&entry.path(), &dst_entry)?;
+        } else {
+            fs::copy(entry.path(), dst_entry)?;
+        }
+    }
+    Ok(())
 }
 
 fn switch(configure: &mut Command, feature: &str, name: &str) {
