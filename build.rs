@@ -433,12 +433,13 @@ fn build(sysroot: Option<&str>) -> io::Result<()> {
     }
 
     // control debug build
-    if env::var("DEBUG").is_ok() {
+    if env::var("DEBUG").is_ok() && !env::var("CARGO_FEATURE_BUILD_NODEBUG").is_ok() {
         configure.arg("--enable-debug");
         configure.arg("--disable-stripping");
     } else {
         configure.arg("--disable-debug");
         configure.arg("--enable-stripping");
+        configure.arg("--enable-optimizations");
         configure.arg("--extra-cflags=-03 -ffast-math -funroll-loops");
         #[cfg(not(target_os = "windows"))]
         configure.arg("--extra-ldflags=-flto");

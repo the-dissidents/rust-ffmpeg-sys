@@ -33,6 +33,8 @@ default  = ["avcodec", "avdevice", "avfilter", "avformat", "swresample", "swscal
 static = []
 build  = ["static"]
 
+build-nodebug = ["build"]
+
 # mark enums in generated bindings as #[non_exhaustive]
 non-exhaustive-enums = []
 
