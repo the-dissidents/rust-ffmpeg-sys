@@ -440,7 +440,7 @@ fn build(sysroot: Option<&str>) -> io::Result<()> {
         configure.arg("--disable-debug");
         configure.arg("--enable-stripping");
         configure.arg("--enable-optimizations");
-        configure.arg("--extra-cflags=-03 -ffast-math -funroll-loops");
+        configure.arg("--extra-cflags=-O3 -ffast-math -funroll-loops");
         #[cfg(not(target_os = "windows"))]
         configure.arg("--extra-ldflags=-flto");
     }
