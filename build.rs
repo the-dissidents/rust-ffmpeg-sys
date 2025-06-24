@@ -318,6 +318,11 @@ fn build(sysroot: Option<&str>) -> io::Result<()> {
     configure.current_dir(&source_dir);
     configure.arg(format!("--prefix={}", search().to_string_lossy()));
 
+    configure.arg(format!(
+        "--arch={}",
+        env::var("CARGO_CFG_TARGET_ARCH").unwrap()
+    ));
+
     let target = env::var("TARGET").unwrap();
     let host = env::var("HOST").unwrap();
     if target != host {
@@ -335,10 +340,6 @@ fn build(sysroot: Option<&str>) -> io::Result<()> {
             configure.arg(format!("--extra-ldflags={}", target_flag));
         }
 
-        configure.arg(format!(
-            "--arch={}",
-            env::var("CARGO_CFG_TARGET_ARCH").unwrap()
-        ));
         configure.arg(format!("--target-os={}", get_ffmpeg_target_os()));
 
         // cross-prefix won't work for android because they use different compiler for every
